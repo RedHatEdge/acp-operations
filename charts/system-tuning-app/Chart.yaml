@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: system-tuning-app
+description: Meta chart to wire up the system-tuning app into argocd
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
