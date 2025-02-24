@@ -1,0 +1,32 @@
+{{- with .Values.networkTuning.interfaceMTUs }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wait-for-mcp-script
+  namespace: openshift-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  wait-for-mcp.sh: |
+    #!/bin/bash
+    set -e
+
+    check_mcp_status() {
+      oc get machineconfigpools -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.conditions[?(@.type=="Updating")].status}{"\n"}{end}' | while read -r pool status; do
+        if [[ "$status" == "True" ]]; then
+          echo "MachineConfigPool '$pool' is still updating..."
+          return 1
+        fi
+      done
+      return 0
+    }
+
+    echo "Waiting for all MachineConfigPools to finish updating..."
+
+    while ! check_mcp_status; do
+      sleep 60
+    done
+
+    echo "All MachineConfigPools have finished updating."
+{{ end }}

@@ -1,0 +1,28 @@
+{{- with .Values.networkTuning.interfaceMTUs }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wait-for-mcp-job
+  namespace: openshift-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: mcp-watcher
+      containers:
+        - name: wait-for-mcp
+          image: registry.redhat.io/openshift4/ose-cli
+          command: ["/bin/bash", "/scripts/wait-for-mcp.sh"]
+          volumeMounts:
+            - name: script-volume
+              mountPath: /scripts
+      restartPolicy: Never
+      volumes:
+        - name: script-volume
+          configMap:
+            name: wait-for-mcp-script
+            defaultMode: 0755
+{{- end }}
