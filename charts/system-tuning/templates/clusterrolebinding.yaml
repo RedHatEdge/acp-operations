@@ -8,6 +8,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: mcp-watcher
+    namespace: openshift-config
 roleRef:
   kind: ClusterRole
   name: mcp-watcher-role
