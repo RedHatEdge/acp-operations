@@ -11,15 +11,16 @@ data:
   wait-for-mcp.sh: |
     #!/bin/bash
     set -e
-
     check_mcp_status() {
-      oc get machineconfigpools -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.conditions[?(@.type=="Updating")].status}{"\n"}{end}' | while read -r pool status; do
-        if [[ "$status" == "True" ]]; then
-          echo "MachineConfigPool '$pool' is still updating..."
-          return 1
-        fi
-      done
-      return 0
+      local updating_count
+      updating_count=$(oc get machineconfigpools -o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Updating")].status}{"\n"}{end}' | grep " True" | wc -l)
+
+      if [[ "$updating_count" -eq 0 ]]; then
+        return 0
+      else
+        echo "$updating_count MachineConfigPools still updating..."
+        return 1
+      fi
     }
 
     echo "Waiting for all MachineConfigPools to finish updating..."
