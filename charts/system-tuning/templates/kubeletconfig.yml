@@ -4,6 +4,8 @@ apiVersion: machineconfiguration.openshift.io/v1
 kind: KubeletConfig
 metadata:
   name: master-config-increase-cpu-memory
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   machineConfigPoolSelector:
     matchLabels:

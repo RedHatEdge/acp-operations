@@ -4,6 +4,8 @@ apiVersion: operator.openshift.io/v1
 kind: Network
 metadata:
   name: cluster
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   migration:
 {{ toYaml . | nindent 4 }}

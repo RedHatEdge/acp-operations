@@ -6,4 +6,6 @@ metadata:
   name: master
   labels:
     increase-system-resources: enabled
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 {{ end }}

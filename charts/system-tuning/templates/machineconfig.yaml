@@ -6,6 +6,8 @@ metadata:
   labels:
     machineconfiguration.openshift.io/role: master
   name: 01-control-plane-interface
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   config:
     ignition:
