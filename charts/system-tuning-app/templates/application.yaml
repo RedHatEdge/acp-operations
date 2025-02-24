@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: system-tuning
+  namespace: openshift-gitops
+  labels:
+    application: system-tuning
+spec:
+  destination:
+    name: ""
+    server: https://kubernetes.default.svc
+  project: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+  source:
+    repoURL: https://github.com/RedHatEdge/acp-operations.git
+    targetRevision: HEAD
+    path: system-tuning
+    helm:
+      values: |
+{{- toYaml .Values | nindent 8 }}
