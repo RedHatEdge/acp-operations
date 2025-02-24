@@ -1,0 +1,22 @@
+{{ if .Values.networkTuning.intefaceMTUs }}
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 01-control-plane-interface
+spec:
+  config:
+    ignition:
+      version: 3.4.0
+    storage:
+      files:
+{{- range $.Values.networkTuning.intefaceMTUs }}
+        - contents:
+            compression: ""
+            source: data:,%5Bconnection-{{ .interface }}-mtu%5D%0Amatch-device%3Dinterface-name%3A{{ .interface }}%0Aethernet.mtu%3D{{ .mtu }}
+          mode: 384
+          path: /etc/NetworkManager/conf.d/{{ .priority | default "99" }}-{{ .interface }}-mtu.conf
+{{- end }}
+{{ end }}

@@ -1,0 +1,30 @@
+---
+
+nodeTuning:
+  kubeletConfig:
+    podsPerCore: 0
+    maxPods: 1000
+  systemReservedResources:
+    cpu: 4000m
+    memory: 4Gi
+
+networkTuning:
+  interfaceMTUs:
+    - interface: bond0
+      mtu: 9000
+    - interface: eno1
+      mtu: 9000
+      priority: 98
+    - interface: enp4s0f0
+      mtu: 9000
+      priority: 98
+  clusterNetworkMTUs:
+    mtu:
+      machine:
+        to: 9000
+      network:
+        from: 1400
+        to: 8900
+
+driverTuning:
+  ixgb: true

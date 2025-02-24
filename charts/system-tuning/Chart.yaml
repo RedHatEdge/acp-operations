@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: system-tuning
+description: This chart configures various resources to properly tune an ACP
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,21 @@
+{{- with .Values.nodeTuning }}
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: KubeletConfig
+metadata:
+  name: master-config-increase-cpu-memory
+spec:
+  machineConfigPoolSelector:
+    matchLabels:
+      increase-system-resources: enabled
+  kubeletConfig:
+{{- with .kubeletConfig }}
+    podsPerCore: {{ .podsPerCore | default "0" }}
+    maxPods: {{ .maxPods | default "250" }}
+{{- end }}
+{{- with .systemReservedResources }}
+    systemReserved:
+      cpu: {{ .cpu }}
+      memory: {{ .memory }}
+{{- end }}
+{{- end }}
