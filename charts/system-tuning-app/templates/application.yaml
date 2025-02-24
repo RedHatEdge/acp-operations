@@ -17,7 +17,7 @@ spec:
   source:
     repoURL: https://github.com/RedHatEdge/acp-operations.git
     targetRevision: HEAD
-    path: system-tuning
+    path: charts/system-tuning
     helm:
       values: |
 {{- toYaml .Values | nindent 8 }}
