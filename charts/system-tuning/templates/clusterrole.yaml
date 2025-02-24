@@ -1,0 +1,12 @@
+{{- with .Values.networkTuning.interfaceMTUs }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mcp-watcher-role
+  namespace: openshift-config
+rules:
+  - apiGroups: ["machineconfiguration.openshift.io"]
+    resources: ["machineconfigpools"]
+    verbs: ["get", "list", "watch"]
+{{- end }}

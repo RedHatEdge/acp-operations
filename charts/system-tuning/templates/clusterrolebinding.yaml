@@ -1,15 +1,15 @@
 {{- with .Values.networkTuning.interfaceMTUs }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: mcp-watcher-binding
+  name: mcp-watcher-cluster-binding
   namespace: openshift-config
 subjects:
   - kind: ServiceAccount
     name: mcp-watcher
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: mcp-watcher-role
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
