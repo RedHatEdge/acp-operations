@@ -12,22 +12,24 @@ data:
     #!/bin/bash
     set -e
     check_mcp_status() {
-      local updating_count
-      updating_count=$(oc get machineconfigpools -o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Updating")].status}{"\n"}{end}' | grep " True" | wc -l)
-
-      if [[ "$updating_count" -eq 0 ]]; then
-        return 0
-      else
-        echo "$updating_count MachineConfigPools still updating..."
+      local all_updated=true
+      oc get machineconfigpools -o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Updating")].status}{"\n"}{end}' | while read -r pool status; do
+        if [[ "$status" == "True" ]]; then
+          echo "MachineConfigPool '$pool' is still updating..."
+          all_updated=false
+        else
+          echo "MachineConfigPool '$pool' is not updating."
+        fi
+      done
+      if [[ "$all_updated" == false ]]; then
         return 1
+      else
+        return 0
       fi
     }
-
     echo "Waiting for all MachineConfigPools to finish updating..."
-
-    while ! check_mcp_status; do
+    until check_mcp_status; do
       sleep 60
     done
-
     echo "All MachineConfigPools have finished updating."
 {{ end }}
