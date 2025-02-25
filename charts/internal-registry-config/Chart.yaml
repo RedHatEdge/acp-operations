@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: internal-registry-config
+description: A chart to setup the internal registry with persistent storage via an object bucket, and to expose it externally
+type: application
+version: 1.0.0
+appVersion: 1.0.0

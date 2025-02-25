@@ -1,0 +1,21 @@
+---
+apiVersion: imageregistry.operator.openshift.io/v1
+kind: Config
+metadata:
+  name: cluster
+spec:
+  defaultRoute: true
+  managementState: Managed
+{{- with .Values.resources }}
+  resources:
+{{- with .requests }}
+    requests:
+      memory: {{ .memory }}
+      cpu: {{ .cpu }}
+{{- end }}
+{{- with .limits }}
+    limits:
+      memory: {{ .memory }}
+      cpu: {{ .cpu }}
+{{- end }}
+{{- end }}
