@@ -10,6 +10,7 @@ spec:
   destination:
     name: ""
     server: https://kubernetes.default.svc
+    namespace: openshift-image-registry
   project: default
   syncPolicy:
     automated:
