@@ -1,0 +1,19 @@
+---
+
+whatToMirror:
+  platform:
+    graph: false
+    channels:
+      - name: stable-4.17
+        type: ocp
+        shortestPath: true
+        minVersion: 4.17.16
+
+destinationRegistry:
+  host: default-route-openshift-image-registry.apps.yourcluster.com/mirror-update-content
+  skipTLS: 'false'
+  internalRegistry: true
+
+openshiftToolsImage: 'quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:535ce24b5f1894d2a07bfa7eed7ad028ffde0659693f2a571ac4712a21cd028c'
+
+pullSecret: 'base64-encoded-pull-secret'

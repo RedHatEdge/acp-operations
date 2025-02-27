@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: mirror-ocp-content
+description: This chart runs a job to mirror ocp content for installs/upgrades
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

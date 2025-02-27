@@ -1,0 +1,21 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: registry-full-access
+rules:
+  - apiGroups:
+      - image.openshift.io
+      - ''
+    resources:
+      - imagestreams
+      - imagestreams/layers
+      - imagestreams/status
+      - imagestreams/secrets
+      - imagestreamtags
+      - imagestreamimages
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs: ["get", "list"]
