@@ -1,0 +1,20 @@
+---
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: repo-webserver-http
+  namespace: "{{ openshift_namespace }}"
+  labels:
+    app.kubernetes.io/name: repo-webserver-http
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: rpm-ostree-repo
+    app.kubernetes.io/managed-by: ansible
+spec:
+  selector:
+    app.kubernetes.io/name: repo-webserver
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

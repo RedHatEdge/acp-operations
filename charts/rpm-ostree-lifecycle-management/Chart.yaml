@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rpm-ostree-lifecycle-management
+description: A chart to deploy rpm-ostree lifecycle management components to an ACP
+type: application
+version: 0.0.1
+appVersion: "1.0.0"

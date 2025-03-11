@@ -1,0 +1,41 @@
+---
+
+- name: Push built container into registry
+  hosts:
+    - all
+  pre_tasks:
+    - name: Enable ocp repository
+      community.general.rhsm_repository:
+        name: rhocp-{{ openshift_client_version }}-for-rhel-{{ ansible_distribution_major_version }}-x86_64-rpms
+        state: enabled
+    - name: Install openshift-clients
+      ansible.builtin.dnf:
+        name:
+          - openshift-clients
+  tasks:
+    - name: Execute if using OCP internal registry
+      when:
+        - use_internal_registry | bool
+      block:
+        - name: Login to cluster
+          ansible.builtin.shell:
+            cmd: >
+              oc
+              login
+              --token={{ lookup('ansible.builtin.env', 'K8S_AUTH_API_KEY') }}
+              {{ lookup('ansible.builtin.env', 'K8S_AUTH_HOST') }}
+        - name: Login to registry
+          ansible.builtin.shell:
+            cmd: >
+              oc
+              registry
+              login
+              --to=/tmp/registry.json
+    - name: Push container
+      containers.podman.podman_image:
+        name: "{{ image_name }}:{{ image_version }}"
+        path: "/var/www/html/{{ image_name }}"
+        push: true
+        push_args:
+          dest: "{{ container_registry_path }}"
+        auth_file: /tmp/registry.json

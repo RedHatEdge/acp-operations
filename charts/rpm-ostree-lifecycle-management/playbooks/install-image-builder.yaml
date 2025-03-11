@@ -1,0 +1,13 @@
+---
+
+- name: Install Image Builder
+  hosts:
+    - all
+  pre_tasks:
+    - name: Register system to the customer portal
+      community.general.redhat_subscription:
+        state: present
+        username: "{{ rhsm_username }}"
+        password: "{{ rhsm_password }}"
+  roles:
+    - infra.osbuild.setup_server

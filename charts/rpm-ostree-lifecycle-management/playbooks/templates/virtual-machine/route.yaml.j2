@@ -1,0 +1,18 @@
+{% if _expose_cockpit is defined and _expose_cockpit | bool %}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: image-builder
+  namespace: "{{ openshift_namespace }}"
+  labels:
+    created-by: ansible
+spec:
+  to:
+    kind: Service
+    name: image-builder-webui
+  port:
+    targetPort: 9090
+  tls:
+    termination: edge
+{% endif %}

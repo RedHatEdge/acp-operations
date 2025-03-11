@@ -1,0 +1,22 @@
+---
+
+- name: Save blueprint and compose image
+  hosts:
+    - all
+  pre_tasks:
+    - name: Push blueprint to local
+      ansible.builtin.copy:
+        content: "{{ image_blueprint }}"
+        dest: /tmp/incoming-blueprint.toml
+      delegate_to: localhost
+      become: false
+  tasks:
+    - name: Include builder role
+      ansible.builtin.include_role:
+        name: infra.osbuild.builder
+      vars:
+        builder_blueprint_name: "{{ image_name }}"
+        builder_compose_type: edge-commit
+        builder_blueprint_import_file: /tmp/incoming-blueprint.toml
+        builder_request_timeout: 2400
+        builder_wait_compose_timeout: 3600

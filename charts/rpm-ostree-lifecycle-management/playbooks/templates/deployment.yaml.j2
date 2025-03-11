@@ -1,0 +1,34 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: repo-webserver-deployment
+  namespace: "{{ openshift_namespace }}"
+  labels:
+    app.kubernetes.io/name: repo-webserver-deployment
+    app.kubernetes.io/part-of: rpm-ostree-repo
+    app.kubernetes.io/managed-by: ansible
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: repo-webserver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: repo-webserver
+        app.kubernetes.io/component: webserver
+        app.kubernetes.io/part-of: rpm-ostree-repo
+        app.kubernetes.io/managed-by: ansible
+    spec:
+      containers:
+        - name: httpd
+{% if use_internal_registry %}
+          image: image-registry.openshift-image-registry.svc:5000/{{ openshift_namespace }}/{{ image_name }}:{{ image_version }}
+{% else %}
+          image: {{ container_registry_path }}/{{ image_name }}:{{ image_version }}
+{% endif %}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: httpd

@@ -1,0 +1,225 @@
+---
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: controller-configuration-configmap
+data:
+  controller-configuration.yaml: |
+{{- with .Values.controllerInformation }}
+    controller_hostname: {{ .hostname }}
+    controller_username: {{ .username }}
+    controller_password: {{ .password }}
+    controller_validate_certs: {{ .validateCerts | default true }}
+    controller_configuration_async_retries: 60
+{{- end }}
+    controller_organizations:
+      - name: rpm-ostree-management
+        description: Automation for managing rpm-ostree systems
+        galaxy_credentials:
+          - Ansible Galaxy
+    controller_credential_types:
+      - name: RHSM Credentials
+        description: credentials for registering to the customer portal or downloading software
+        inputs:
+          fields:
+            - type: string
+              id: rhsm_username
+              label: RHSM Username
+            - type: string
+              id: rhsm_password
+              label: RHSM Password
+              secret: true
+            - type: string
+              id: offline_token
+              label: Offline Token
+              secret: true
+        injectors:
+          extra_vars:
+            rhsm_username: "{  { rhsm_username }}"
+            rhsm_password: "{  { rhsm_password }}"
+            rhsm_offline_token: "{  { offline_token }}"
+    controller_credentials:
+      - name: Image Builder Server Login
+        organization: rpm-ostree-management
+        credential_type: Machine
+        inputs:
+{{- with .Values.credentials.virtualMachine }}
+          username: {{ .username }}
+          password: {{ .password }}
+{{- end }}
+      - name: GitHub PAT
+        organization: rpm-ostree-management
+        credential_type: Source Control
+{{- with .Values.credentials.github }}
+        inputs:
+          username: {{ .username }}
+          password: {{.PAT }}
+{{- end }}
+      - name: OpenShift Token
+        organization: rpm-ostree-management
+        credential_type: OpenShift or Kubernetes API Bearer Token
+        inputs:
+{{- with .Values.credentials.openShift }}
+          host: {{ .host }}
+          bearer_token: {{ .token }}
+{{- end }}
+      - name: RHSM Credentials
+        organization: rpm-ostree-management
+        credential_type: RHSM Credentials
+        inputs:
+{{- with .Values.credentials.rhsm }}
+          rhsm_username: {{ .username }}
+          rhsm_password: {{ quote .password }}
+{{- end }}
+    controller_inventories:
+      - name: Image Builder Servers
+        organization: rpm-ostree-management
+      - name: Rpm-Ostree Systems
+        organization: rpm-ostree-management
+      - name: Local Actions
+        organization: rpm-ostree-management
+    controller_hosts:
+      - name: image-builder-0
+        inventory: Image Builder Servers
+        variables:
+          ansible_host: image-builder-0-ssh.{{ .Release.Namespace }}.svc.cluster.local
+      - name: localhost
+        inventory: Local Actions
+        variables:
+          ansible_connection: local
+          ansible_python_interpreter: '{  { ansible_playbook_python }}'
+    controller_projects:
+      - name: Image Builder Automation
+        organization: rpm-ostree-management
+        scm_type: git
+        scm_url: {{ .Values.sourceControl.repoURL }}
+{{- with .Values.credentials.github }}
+        credential: "GitHub PAT"
+{{- end }}
+    controller_templates:
+      - name: Create Image Builder Server
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Local Actions
+        playbook: {{ .Values.sourceControl.playbooksPath }}/create-image-builder-server.yaml
+        credentials:
+          - OpenShift Token
+      - name: Wait for Image Builder Server
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Image Builder Servers
+        credentials:
+          - Image Builder Server Login
+        become_enabled: 'true'
+        playbook: {{ .Values.sourceControl.playbooksPath }}/wait-for-image-builder-server.yaml
+      - name: Install Image Builder
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Image Builder Servers
+        credentials:
+          - Image Builder Server Login
+          - RHSM Credentials
+        become_enabled: 'true'
+        playbook: {{ .Values.sourceControl.playbooksPath }}/install-image-builder.yaml
+      - name: Compose Rpm-Ostree Image
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Image Builder Servers
+        credentials:
+          - Image Builder Server Login
+        become_enabled: 'true'
+        playbook: {{ .Values.sourceControl.playbooksPath }}/compose-rpm-ostree-image.yaml
+      - name: Create Image Hosting Container
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Image Builder Servers
+        credentials:
+          - Image Builder Server Login
+          - RHSM Credentials
+        become_enabled: 'true'
+        playbook: {{ .Values.sourceControl.playbooksPath }}/build-rpm-ostree-image-hosting-container.yaml
+      - name: Push Image Hosting Container
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Image Builder Servers
+        credentials:
+          - Image Builder Server Login
+          - OpenShift Token
+        become_enabled: 'true'
+        playbook: {{ .Values.sourceControl.playbooksPath }}/push-rpm-ostree-image-hosting-container.yaml
+      - name: Deploy Image Hosting Container
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Local Actions
+        credentials:
+          - OpenShift Token
+        playbook: {{ .Values.sourceControl.playbooksPath }}/deploy-rpm-ostree-image-hosting-container.yaml
+      - name: Cleanup Image Builder Server
+        organization: rpm-ostree-management
+        project: Image Builder Automation
+        inventory: Local Actions
+        credentials:
+          - OpenShift Token
+        playbook: {{ .Values.sourceControl.playbooksPath }}/create-image-builder-server.yaml
+        extra_vars:
+          ocp_resource_state: absent
+          
+    controller_workflows:
+      - name: Compose New Rpm-Ostree Image
+        organization: rpm-ostree-management
+        extra_vars:
+          openshift_namespace: {{ .Release.Namespace }}
+          use_internal_registry: {{ .Values.containerRegistry.useInternalRegistry }}
+          openshift_client_version: {{ .Values.openShiftClientVersion }}
+          container_registry_path: {{ .Values.containerRegistry.path }}
+        survey_enabled: true
+        survey_spec:
+          name: workflow_survey
+          description: get info to compose image
+          spec:
+            - question_name: Image Name
+              question_description: Name of image to compose
+              required: true
+              type: text
+              variable: image_name
+            - question_name: Image Version
+              question_description: Version tag for image
+              required: true
+              type: text
+              variable: image_version
+            - question_name: Image Blueprint
+              question_description: Blueprint contents
+              required: true
+              type: textarea
+              variable: image_blueprint
+        simplified_workflow_nodes:
+          - identifier: Create Image Builder Server
+            unified_job_template: Create Image Builder Server
+            success_nodes:
+              - Wait for Image Builder Server
+          - identifier: Wait for Image Builder Server
+            unified_job_template: Wait for Image Builder Server
+            success_nodes:
+              - Install Image Builder
+          - identifier: Install Image Builder
+            unified_job_template: Install Image Builder
+            success_nodes:
+              - Compose Rpm-Ostree Image
+          - identifier: Compose Rpm-Ostree Image
+            unified_job_template: Compose Rpm-Ostree Image
+            success_nodes:
+              - Create Image Hosting Container
+          - identifier: Create Image Hosting Container
+            unified_job_template: Create Image Hosting Container
+            success_nodes:
+              - Push Image Hosting Container
+          - identifier: Push Image Hosting Container
+            unified_job_template: Push Image Hosting Container
+            success_nodes:
+              - Cleanup Image Builder Server
+              - Deploy Image Hosting Container
+          - identifier: Cleanup Image Builder Server
+            unified_job_template: Cleanup Image Builder Server
+          - identifier: Deploy Image Hosting Container
+            unified_job_template: Deploy Image Hosting Container

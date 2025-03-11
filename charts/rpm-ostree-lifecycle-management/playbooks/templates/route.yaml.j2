@@ -1,0 +1,18 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: repo
+  labels:
+    app.kubernetes.io/name: repo
+    app.kubernetes.io/component: route
+    app.kubernetes.io/part-of: rpm-ostree-repo
+    app.kubernetes.io/managed-by: ansible
+spec:
+  to:
+    kind: Service
+    name: repo-webserver-http
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge

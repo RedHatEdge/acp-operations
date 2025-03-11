@@ -1,0 +1,19 @@
+---
+
+- name: Deploy rpm-ostree repo container to OCP
+  hosts:
+    - all
+  gather_facts: false
+  vars:
+    ocp_resource_state: present
+  module_defaults:
+    group/k8s:
+      namespace: "{{ openshift_namespace }}"
+  tasks:
+    - name: Deploy resources
+      kubernetes.core.k8s:
+        template:
+          - path: templates/deployment.yaml.j2
+          - path: templates/http-service.yaml.j2
+          - path: templates/route.yaml.j2
+        state: "{{ ocp_resource_state }}"

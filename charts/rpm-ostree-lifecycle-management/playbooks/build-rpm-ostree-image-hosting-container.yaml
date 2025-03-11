@@ -1,0 +1,30 @@
+---
+
+- name: Build container to host rpm-ostree image
+  hosts:
+    - all
+  pre_tasks:
+    - name: Ensure podman is installed
+      ansible.builtin.dnf:
+        name:
+          - podman
+    - name: Login to registry.redhat.io
+      containers.podman.podman_login:
+        username: "{{ rhsm_username }}"
+        password: "{{ rhsm_password }}"
+        registry: registry.redhat.io
+  tasks:
+    - name: Copy Containerfile to build directory
+      ansible.builtin.copy:
+        src: files/Containerfile
+        dest: "/var/www/html/{{ image_name }}/Containerfile"
+    - name: Dump the lock file
+      ansible.builtin.file:
+        path: "/var/www/html/{{ image_name }}/repo/.lock"
+        state: absent
+    - name: Build container
+      containers.podman.podman_image:
+        name: "{{ image_name }}:{{ image_version }}"
+        path: "/var/www/html/{{ image_name }}"
+        build:
+          format: oci
