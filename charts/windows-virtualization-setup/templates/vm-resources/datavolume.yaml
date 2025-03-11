@@ -1,0 +1,23 @@
+{{- range .Values.windowsOperatingSystems }}
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: {{ .name }}-installer-iso
+  namespace: windows-virtualization-setup
+  annotations:
+    "cdi.kubevirt.io/storage.bind.immediate.requested": "true"
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: {{ .storage | default "10Gi" }}
+    volumeMode: Block
+    storageClassName: ocs-storagecluster-ceph-rbd-virtualization
+  source:
+    http:
+      url: {{ quote .url }}
+{{- end }}

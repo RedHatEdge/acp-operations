@@ -1,0 +1,83 @@
+---
+
+# What the administrator account password, and optional admin account password should be
+defaultAdminPassword: adminPassw0rd4templ4tes
+# What the default timezone for the template should be
+timeZone: Central Standard Time
+# What version of the virtio container disk to use - v1.1.1 tested
+virtioContainerDiskVersion: v1.1.1
+# How long to wait before declaring the pipeline run a failure
+buildTimeout: 2h0m0s
+
+# What storage classes to use
+# If using the converged storage service, the recommended storage class is `ocs-storagecluster-ceph-rbd-virtualization`
+installerIsoCopyStorageClass: ocs-storagecluster-ceph-rbd-virtualization
+templateInstallStorageClass: ocs-storagecluster-ceph-rbd-virtualization
+templateDataVolumeStorageClass: ocs-storagecluster-ceph-rbd-virtualization
+
+# Provide product keys for templates, or optionally, use the KMS keys
+productKeys:
+  windows10: kms-key-here
+  windows11: kms-key-here
+
+# List of operating systems to create a template/pipeline/etc for
+windowsOperatingSystems:
+    # Lowercase name used for resources
+  - name: windows10
+    # Where to download the installation ISO from
+    url: "http://your-web-server-here.com/windows10.iso"
+    # Display name for the template
+    displayName: "Windows 10"
+    # Name of the autounattend configmap
+    # Should match what's in ./templates/image-prep/autounattends
+    autounattendConfigMap: windows10-autounattend
+    # Performance profile for the 
+    profile: desktop
+    # If the created pipeline should be run immediately after creation
+    autoRunPipeline: true
+
+    # Same structure as above
+  - name: server2019
+    url: "http://your-web-server-here.com/server2019.iso"
+    displayName: "Server 2019"
+    autounattendConfigMap: server2019-autounattend
+    profile: server
+    autoRunPipeline: true
+
+    # Same structure, but enable uefi and secure boot
+  - name: windows11
+    url: "http://your-web-server-here.com/windows11.iso"
+    displayName: "Windows 11"
+    autounattendConfigMap: windows11-autounattend-custom
+    profile: desktop
+    # Set UEFI on
+    uefi:
+      # Enable secure boot
+      secureBoot: true
+    autoRunPipeline: true
+
+    # Same structure, but enable uefi and secure boot
+  - name: server2022
+    url: "http://your-web-server-here.com/server2022.iso"
+    displayName: "Server 2022"
+    autounattendConfigMap: server2022-autounattend
+    profile: server
+    uefi:
+      secureBoot: true
+    autoRunPipeline: true
+
+    # Same structure, but enable uefi and secure boot
+  - name: server2025
+    url: "http://your-web-server-here.com/server2025.iso"
+    displayName: "Server 2025"
+    autounattendConfigMap: server2025-autounattend
+    profile: server
+    uefi:
+      secureBoot: true
+    autoRunPipeline: true
+
+# Default resources for the created templates
+template:
+  cpuCores: 4
+  memory: 8Gi
+  diskSize: 100Gi

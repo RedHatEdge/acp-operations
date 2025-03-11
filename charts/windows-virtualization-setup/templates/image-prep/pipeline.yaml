@@ -1,0 +1,328 @@
+{{- range .Values.windowsOperatingSystems }}
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: create-{{ .name }}-template
+  namespace: windows-virtualization-setup
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  params:
+    - name: autounattendConfigMapName
+      default: {{ .autounattendConfigMap }}
+      type: string
+    - name: uniqueResourceName
+      type: string
+      default: {{ .name }}-template
+    - name: templateVersion
+      type: string
+      default: '1.0.0'
+  tasks:
+    - name: copy-installer-iso
+      displayName: Copy Installer ISO
+      description: Copies the installation ISO to prepare for an installation
+      params:
+        - name: manifest
+          value: |-
+            apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              name: {{ .name }}-installer-iso-copy
+              annotations:
+                "cdi.kubevirt.io/storage.bind.immediate.requested": "true"
+            spec:
+              pvc:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 10Gi
+                volumeMode: Block
+                storageClassName: {{ $.Values.installerIsoCopyStorageClass }}
+              source:
+                pvc:
+                  name: {{ .name }}-installer-iso
+                  namespace: windows-virtualization-setup
+        - name: waitForSuccess
+          value: "true"
+        - name: allowReplace
+          value: "true"
+      taskRef:
+        kind: Task
+        name: modify-data-object
+    - name: create-install-destination
+      displayName: Create Installation Destination 
+      description: Creates a disk image for installing Windows into
+      params:
+        - name: manifest
+          value: |-
+            apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              generateName: {{ .name }}-template-prep
+              annotations:
+                "cdi.kubevirt.io/storage.bind.immediate.requested": "true"
+            spec:
+              pvc:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: {{ $.Values.template.diskSize | default "50Gi" }}
+                volumeMode: Block
+                storageClassName: {{ $.Values.templateInstallStorageClass }}
+              source:
+                blank: {}
+        - name: waitForSuccess
+          value: "true"
+        - name: allowReplace
+          value: "true"
+      taskRef:
+        kind: Task
+        name: modify-data-object
+    - name: create-template-virtual-machine
+      displayName: Create Windows VM
+      description: Creates a Windows VM to perform the installation and customization
+      params:
+        - name: manifest
+          value: |-
+            apiVersion: kubevirt.io/v1alpha3
+            kind: VirtualMachine
+            metadata:
+              generateName: run-{{ .name }}-installer-
+              annotation:
+                description: Tempalate {{.name }} virtual machine
+              labels:
+                app: windows-installer
+                pipeline: create-{{ .name }}-template
+            spec:
+              runStrategy: RerunOnFailure
+              template:
+                metadata:
+                  labels:
+                    kubevirt.io/domain: windows-installer
+                spec:
+                  architecture: amd64
+                  domain:
+                    clock:
+                      timer:
+                        hpet:
+                          present: false
+                        hyperv: {}
+                        pit:
+                          tickPolicy: delay
+                        rtc:
+                          tickPolicy: catchup
+                      utc: {}
+                    cpu:
+                      cores: {{ $.Values.template.cpuCores | default "2" }}
+                      sockets: 1
+                      threads: 1
+                    memory:
+                      guest: {{ $.Values.template.memory | default "4Gi" }}
+                    devices:
+                      disks:
+                        - name: installcdrom
+                          cdrom:
+                            bus: sata
+                          bootOrder: 1
+                        - name: rootdisk
+                          bootOrder: 2
+                          disk:
+                            bus: virtio
+                        - name: virtiocontainerdisk
+                          cdrom:
+                            bus: sata
+                        - name: sysprepconfig
+                          cdrom:
+                            bus: sata
+                      inputs:
+                        - bus: usb
+                          name: tablet
+                          type: tablet
+                      interfaces:
+                        - masquerade: {}
+                          model: e1000e
+                          name: default
+                      logSerialConsole: false
+                      tpm: {}
+                    features:
+                      acpi: {}
+                      apic: {}
+                      hyperv:
+                        reenlightenment: {}
+                        ipi: {}
+                        synic: {}
+                        synictimer:
+                          direct: {}
+                        spinlocks:
+                          spinlocks: 8191
+                        reset: {}
+                        relaxed: {}
+                        vpindex: {}
+                        runtime: {}
+                        tlbflush: {}
+                        frequencies: {}
+                        vapic: {}
+                      smm: {}
+                    {{ if .uefi }}
+                    firmware:
+                      bootloader:
+                        efi:
+                          {{ if .uefi.secureBoot }}
+                          secureBoot: true
+                          {{ else }}
+                          secureBoot: false
+                          {{ end }}
+                    {{ end }}
+                    machine:
+                      type: pc-q35-rhel9.2.0
+                  networks:
+                    - name: default
+                      pod: {}
+                  volumes:
+                    - name: installcdrom
+                      dataVolume:
+                        name: '$(tasks.copy-installer-iso.results.name)'
+                    - name: rootdisk
+                      dataVolume:
+                        name: '$(tasks.create-install-destination.results.name)'
+                    - name: virtiocontainerdisk
+                      containerDisk:
+                        image: quay.io/kubevirt/virtio-container-disk:v1.1.1
+                    - name: sysprepconfig
+                      sysprep:
+                        configMap:
+                          name: $(params.autounattendConfigMapName)
+      runAfter:
+        - copy-installer-iso
+        - create-install-destination
+      taskRef:
+        kind: Task
+        name: create-vm-from-manifest
+    - name: wait-for-virtual-machine-install
+      displayName: Wait for VM Shutdown
+      description: Wait for the installation and customization process to finish, after which the VM will shut down
+      params:
+        - name: vmiName
+          value: $(tasks.create-template-virtual-machine.results.name)
+        - name: vmiNamespace
+          value: ""
+        - name: successCondition
+          value: status.phase == Succeeded
+        - name: failureCondition
+          value: "status.phase in (Failed, Unknown)"
+      runAfter:
+        - create-template-virtual-machine
+      taskRef:
+        kind: Task
+        name: wait-for-vmi-status
+    - name: snapshot-virtual-machine-disk
+      displayName: Snapshot VM disk image
+      description: Saves the VM disk image as a new gold image to allow easy VM creation from it
+      params:
+        - name: manifest
+          value: |
+            apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataVolume
+            metadata:
+              annotations:
+                "cdi.kubevirt.io/storage.bind.immediate.requested": "true"
+              name: $(params.uniqueResourceName)-$(params.templateVersion)
+              namespace: openshift-virtualization-os-images
+            spec:
+              pvc:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: {{ $.Values.template.diskSize }}
+                volumeMode: Block
+                storageClassName: {{ $.Values.templateDataVolumeStorageClass }}
+              source:
+                pvc:
+                  name: $(tasks.create-install-destination.results.name)
+                  namespace: windows-virtualization-setup
+        - name: waitForSuccess
+          value: "true"
+        - name: allowReplace
+          value: "true"
+      runAfter:
+        - wait-for-virtual-machine-install
+      taskRef:
+        kind: Task
+        name: modify-data-object
+    - name: create-template-data-source
+      displayName: Create {{ .displayName }} Template Data Source
+      description: Wires the application to use the new disk image snapshot, instead of the previously customized image
+      params:
+        - name: manifest
+          value: |
+            apiVersion: cdi.kubevirt.io/v1beta1
+            kind: DataSource
+            metadata:
+              name: {{ .name }}
+              namespace: openshift-virtualization-os-images
+            spec:
+              source:
+                pvc:
+                  name: $(params.uniqueResourceName)-$(params.templateVersion)
+                  namespace: openshift-virtualization-os-images
+        - name: waitForSuccess
+          value: "true"
+        - name: allowReplace
+          value: "true"
+      runAfter:
+        - snapshot-virtual-machine-disk
+      taskRef:
+        kind: Task
+        name: modify-data-object
+  finally:
+    - name: cleanup-template-virtual-machine
+      displayName: Cleanup Template Virtual Machine
+      description: Tears down the ephemeral VM instance used for installation and customization
+      params:
+        - name: vmName
+          value: $(tasks.create-template-virtual-machine.results.name)
+        - name: delete
+          value: "true"
+      taskRef:
+        kind: Task
+        name: cleanup-vm
+      timeout: 10m0s
+    - name: delete-copied-installer-iso
+      displayName: Delete Copy of {{ .displayName }} Installer ISO
+      description: Delete the copied PVC
+      params:
+        - name: deleteObject
+          value: "true"
+        - name: deleteObjectKind
+          value: DataVolume
+        - name: deleteObjectName
+          value: $(tasks.copy-installer-iso.results.name)
+      taskRef:
+        kind: Task
+        name: modify-data-object
+    - name: delete-template-vm-disk
+      displayName: Remove Template Virtual Machine Disk
+      description: Deletes disk of template virtual machine
+      params:
+        - name: deleteObject
+          value: "true"
+        - name: deleteObjectKind
+          value: DataVolume
+        - name: deleteObjectName
+          value: $(tasks.create-install-destination.results.name)
+      taskRef:
+        kind: Task
+        name: modify-data-object
+  results:
+    - description: Name of the created base DataVolume
+      name: baseDvName
+      value: $(tasks.create-template-data-source.results.name)
+    - description: Namespace of the created base DataVolume
+      name: baseDvNamespace
+      value: $(tasks.create-template-data-source.results.namespace)
+{{- end }}

@@ -1,0 +1,26 @@
+{{- range .Values.windowsOperatingSystems }}
+{{- if .autoRunPipeline }}
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: create-{{ .name }}-template-{{ .autoPipelineRunVersion | default "1.0.0" }}
+  labels:
+    tekton.dev/pipeline: create-{{ .name }}-template
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  pipelineRef:
+    name: create-{{ .name }}-template
+  timeouts:
+    pipeline: {{ $.Values.buildTimeout }}
+  params:
+    - name: autounattendConfigMapName
+      value: {{ .autounattendConfigMap }}
+    - name: uniqueResourceName
+      value: {{ .name }}-template
+    - name: templateVersion
+      value: {{ .autoPipelineRunVersion | default "1.0.0" }}
+{{- end }}
+{{- end }}
