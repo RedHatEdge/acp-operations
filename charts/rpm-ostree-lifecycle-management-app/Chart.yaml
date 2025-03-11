@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: rpm-ostree-lifecycle-management-app
+description: Meta chart to wire up the rpm-ostree-lifecycle-management app into argocd
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

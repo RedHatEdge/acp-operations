@@ -1,0 +1,24 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rpm-ostree-lifecycle-management
+  namespace: openshift-gitops
+  labels:
+    application: rpm-ostree-lifecycle-management
+spec:
+  destination:
+    name: ""
+    server: https://kubernetes.default.svc
+    namespace: rpm-ostree-management
+  project: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+  source:
+    repoURL: https://github.com/RedHatEdge/acp-operations.git
+    targetRevision: HEAD
+    path: charts/rpm-ostree-lifecycle-management
+    helm:
+      values: |
+{{- toYaml .Values | nindent 8 }}
