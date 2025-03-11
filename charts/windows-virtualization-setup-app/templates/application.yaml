@@ -1,0 +1,23 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: windows-virtualization-setup
+  namespace: openshift-gitops
+  labels:
+    application: windows-virtualization-setup
+spec:
+  destination:
+    name: ""
+    server: https://kubernetes.default.svc
+  project: default
+  syncPolicy:
+    automated:
+      selfHeal: true
+  source:
+    repoURL: https://github.com/RedHatEdge/acp-operations.git
+    targetRevision: HEAD
+    path: charts/windows-virtualization-setup
+    helm:
+      values: |
+{{- toYaml .Values | nindent 8 }}
